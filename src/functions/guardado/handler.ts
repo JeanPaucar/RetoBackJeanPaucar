@@ -7,7 +7,10 @@ module.exports.guardado = async (event: any) => {
   console.log("Lamda guardado Activado");
 
   console.log(event);
-  let body = JSON.parse(event.Records[0].body);  
+  let body = event.detail;
+  console.log('body');
+  console.log(body);
+  
   let OutputGame = body.OutputGame;
   console.log(JSON.stringify(OutputGame));
   

@@ -19,11 +19,8 @@ const serverlessConfiguration: AWS = {
     },
     environment: {
       REGION: "${self:provider.region}",
-      SAVE_GAME_TABLE:"SaveGameTable",
-      PENDING_SAVE_QUEUE: {
-        Ref: "PendingSaveQueue",
-      },
-      PENDING_SAVE_QUEUE_NAME: "PendingSaveQueue",
+      SAVE_GAME_TABLE: "SaveGameTable",
+
       PENDING_PROCESS_QUEUE: {
         Ref: "PendingProcessQueue",
       },
@@ -43,11 +40,16 @@ const serverlessConfiguration: AWS = {
         Action: ["sqs:SendMessage"],
         Resource:
           "arn:aws:sqs:${self:provider.region}:*:${self:provider.environment.PENDING_PROCESS_QUEUE_NAME}",
-      },{
+      },
+      {
         Effect: "Allow",
-        Action: ["sqs:SendMessage"],
-        Resource:
-          "arn:aws:sqs:${self:provider.region}:*:${self:provider.environment.PENDING_SAVE_QUEUE_NAME}",
+        Action: ["events:PutEvents"],
+        Resource: "arn:aws:events:${self:provider.region}:*:rule/EventsRule",
+      },
+      {
+        Effect: "Allow",
+        Action: "events:PutEvents",
+        Resource: "arn:aws:events:us-east-1:*:event-bus/default",
       },
     ],
   },
@@ -61,37 +63,62 @@ const serverlessConfiguration: AWS = {
           QueueName: "${self:provider.environment.PENDING_PROCESS_QUEUE_NAME}",
         },
       },
-      PendingSaveQueue: {
-        Type: "AWS::SQS::Queue",
+
+      EventsRule: {
+        Type: "AWS::Events::Rule",
         Properties: {
-          QueueName: "${self:provider.environment.PENDING_SAVE_QUEUE_NAME}",
+          Name: "EventsRule",
+          Description: "eventsBridge",
+          EventPattern: {
+            source: ["guardado.info"],
+            "detail-type": ["info"],
+          },
+          Targets: [
+            {
+              Arn: "arn:aws:lambda:us-east-1:740735467544:function:retoLCRGame-dev-guardado",
+              Id: "RuleId",
+            },
+          ],
         },
       },
+      TwoInvokePermission: {
+        Type: "AWS::Lambda::Permission",
+        Properties: {
+          Action: "lambda:InvokeFunction",
+          FunctionName:
+            "arn:aws:lambda:us-east-1:740735467544:function:retoLCRGame-dev-guardado",
+          Principal: "events.amazonaws.com",
+          SourceArn: {
+            "Fn::GetAtt": ["EventsRule", "Arn"],
+          },
+        },
+      },
+
       SaveGameTable: {
         Type: "AWS::DynamoDB::Table",
         Properties: {
-          TableName: '${self:provider.environment.SAVE_GAME_TABLE}',
+          TableName: "${self:provider.environment.SAVE_GAME_TABLE}",
           AttributeDefinitions: [
             {
-              AttributeName: 'bcId',
-              AttributeType: 'S',
-            }
+              AttributeName: "bcId",
+              AttributeType: "S",
+            },
           ],
           KeySchema: [
             {
-              AttributeName: 'bcId',
-              KeyType: 'HASH',
+              AttributeName: "bcId",
+              KeyType: "HASH",
             },
           ],
           ProvisionedThroughput: {
             ReadCapacityUnits: 1,
             WriteCapacityUnits: 1,
-          },  
+          },
           StreamSpecification: {
-            StreamViewType: 'NEW_IMAGE'
-          }        
-        },  
-      }
+            StreamViewType: "NEW_IMAGE",
+          },
+        },
+      },
     },
   },
   package: { individually: true },

@@ -1,7 +1,6 @@
 import  * as AWS from 'aws-sdk';
 import {   defaultResponse} from '@libs/api-gateway';
-var sqs = new AWS.SQS({region: process.env.SQS_REGION});
-const QUEUE_URL = process.env.PENDING_SAVE_QUEUE;
+var eventbridge = new AWS.EventBridge();
 module.exports.procesar = async (event: any) => {
   console.log("Lamda procesar Activado");
 
@@ -96,22 +95,27 @@ module.exports.procesar = async (event: any) => {
       }
     });
   }
-  
+
+  var params = {
+    Entries:[
+      {
+        Detail: JSON.stringify({OutputGame}),
+        DetailType: 'info',
+        Source: 'guardado.info'
+      },
+    ]
+  };
+
+  console.log(params);
   try {
-    const params = {
-      MessageBody: JSON.stringify({OutputGame}),
-      QueueUrl: QUEUE_URL
-    };
-    console.log(JSON.stringify(params));
-    const response = await sqs.sendMessage(params).promise();
+    let response = await eventbridge.putEvents(params).promise();
     return defaultResponse(200,{
-      message: {
-        body: event.body,
-        MessageSQS: response
-      }
+      message: params,
+      response
     });
   } catch (error) {
-    return defaultResponse(500,error);
+    return defaultResponse(500,{
+      message: error
+    });
   }
-  
 };
