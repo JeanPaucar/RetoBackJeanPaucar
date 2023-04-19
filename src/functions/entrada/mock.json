@@ -1,0 +1,6 @@
+{
+  "headers": {
+    "Content-Type": "application/json"
+  },
+  "body": "\"game\":[{\"players\": 3 , \"plays\": \"RLC.RL..RL.CC\"}]"
+}
